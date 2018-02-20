@@ -200,7 +200,7 @@ $('#create-wallet').submit(function(event) {
   bitbox.createWallet(backupName, function(response) {
     $(".spinner").hide();
     frontend.enableElementsRequiringWallet();
-    frontend.setInfo($('#create-wallet-msg'), response);
+    frontend.setSuccess($('#create-wallet-msg'), response);
   }, function(error) {
     $(".spinner").hide();
     frontend.setError($('#create-wallet-msg'), error);
@@ -222,7 +222,7 @@ $('#sign').submit(function() {
   let hash = $('#sign-hash').val();
   bitbox.sign(keypath, hash, function(response) {
     $(".spinner").hide();
-    frontend.setInfo($('#sign-msg'), response);
+    frontend.setSuccess($('#sign-msg'), response);
   }, function(error) {
     $(".spinner").hide();
     frontend.setError($('#sign-msg'), error);
@@ -252,12 +252,12 @@ $('#set-password').submit(function() {
   let setPasswordResponse;
   if (bitbox.state.initialized) {
     bitbox.updatePassword(pw, function(response) {
-      frontend.setInfo($('#set-password-info'), response);
+      frontend.setSuccess($('#set-password-info'), response);
       $(".spinner").hide();
     });
   } else {
     let setPasswordResponse = bitbox.createPassword(pw);
-    frontend.setInfo($('#set-password-info'), setPasswordResponse);
+    frontend.setSuccess($('#set-password-info'), setPasswordResponse);
     $(".spinner").hide();
   }
   printInitializationStatus();
@@ -275,8 +275,9 @@ $('#misc').submit(function() {
   let sendEncrypted = $('#misc-input-encrypt').prop('checked');
   console.log('send encrypted: ' + sendEncrypted);
   bitbox.sendAny(command, sendEncrypted, function(response) {
-    frontend.setInfo($('#misc-msg'), response);
+    frontend.setSuccess($('#misc-msg'), response);
   }, function(response) {
     frontend.setError($('#misc-msg'), response);
   });
 });
+
