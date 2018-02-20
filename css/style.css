@@ -1,0 +1,83 @@
+.container {
+  margin-top: 40px;
+}
+
+.row {
+  margin-bottom: 20px;
+}
+
+.device-not-plugged-in {
+  opacity: 0.4;
+}
+
+.device-not-initialized {
+  opacity: 0.4;
+}
+
+.wallet-not-initialized {
+  opacity: 0.4;
+}
+
+.not-logged-in {
+  opacity: 0.4;
+}
+
+.only-not-seeded {
+  opacity: 0.4;
+}
+
+.only-uninitialized {
+  display: none;
+}
+
+.only-not-logged-in {
+  opacity: 0.4;
+}
+
+.term {
+  font-style: italic;
+}
+
+.code {
+  font-family: monospace;
+}
+
+pre.code {
+  border: 1px #ccc solid;
+  padding: 10px;
+}
+
+.highlight {
+  font-weight: bold;
+}
+
+.col-form-label {
+  font-weight: bold;
+}
+
+.form-input {
+  margin-bottom: 3px;
+}
+
+.hidden {
+  display: none;
+}
+
+.form-group {
+  background-color: #eee;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  width: 60%;
+}
+
+.form-group > .row {
+  margin: 0px;
+}
+
+.spinner {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 9999;
+}

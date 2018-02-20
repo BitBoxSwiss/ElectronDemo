@@ -1,0 +1,374 @@
+<!DOCTYPEhtml>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Digital Bitbox Playground</title>
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/fontawesome-all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body>
+    <div class="spinner"><i class="fa fa-cog fa-spin" style="font-size: 30px"></i></div>
+    <div class="container">
+      <div class="row">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12">
+          <h1>Digital Bitbox Playground</h1>
+          <p>
+          Welcome to the Digital Bitbox Playground. This application serves as
+          a tutorial that will guide you
+          in developing a wallet based on Node.js and Electron.
+          </p>
+          <p>
+          The device status is detected by listening on the HID interface.
+          Plugging the device in or off will change the status message and
+          enable or disable the interactive elements below.
+          </p>
+          <div id="device-status" class="alert">
+          </div>
+        </div>
+      </div>
+      <div class="row requires-device">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">HID Public Info</h4>
+          <p>
+          In general, the communication between a Desktop wallet and the Digital Bitbox is performed via the USB HID interface.
+          </p>
+          <p>
+          Using Node.js, public information about the HID device is retrieved
+          using the <span class="term">node-hid</span> module.
+          If you have a look at <span class="code">hid.js</span>, you will see that devices can be filtered
+          using different parameters. We retrieve the correct device by filtering
+          the vendor and product ID.
+          </p>
+          <p>
+          The Bitbox has a <span class="highlight">vendor ID '1003'</span> and
+          <span class="highlight">product ID '9218'</span>. If you only query
+          for those two parameters, you will notice that two device objects match.
+          This is because the Bitbox is a composite device with 2 HID generic
+          interfaces: One for the hardware wallet and one for FIDO U2F.
+          </p>
+          <p>
+          We are only interested in the hardware wallet in this tutorial.
+          </p>
+          <div id="public-device-info" class="alert alert-secondary"></div>
+        </div>
+      </div>
+      <div class="row requires-device">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Status</h4>
+          <p>
+          The status of the Bitbox is determined by parsing the response of a
+          <span class="term">ping</span> request.
+          Therefore, we send the following request to the Bitbox in plain text:
+          </p>
+          <pre class="code">
+{
+  "ping" : ""
+}</pre>
+          <p>
+          If the response value is <span class="code">"false"</span>, the device is
+          not initialized.  If it is <span class="code">"password"</span>, a
+          password has been set, which means that the device is initialized.
+          </p>
+          <p class="only-plugged-in">
+          The status of the plugged in device is:
+          </p>
+          <div id="init-info" class="info-msg alert hidden only-plugged-in"></div>
+          <p class="only-plugged-in">
+          The following response is received:
+          </p>
+          <div id="ping-info" class="info-msg alert alert-sucess hidden only-plugged-in"></div>
+        </div>
+      </div>
+      <div class="row requires-device only-uninitialized">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Set Password</h3>
+          <p>
+          The device is not yet initialized. Therefore, you need to set
+          a password.
+          </p>
+          <p>
+          Setting the password on an uninitialized device is done by sending
+          the following plain text request:
+          </p>
+          <pre class="code">
+{
+  "password" : "&lt;password&gt;"
+}</pre>
+          <p>
+          Once the device is initialized, the above plaintext command will not
+          work any longer. To change the password, you need to send the same
+          command in an encrypted request. The password of the device is used
+          to generate the symmetric key of the encrypted communication.
+          </p>
+          <div id="set-password-info" class="info-msg alert hidden">
+          </div>
+          <form id="set-password">
+            <div class="form-group">
+              <div class="row">
+                <label for="pw" class="col-sm-4 col-form-label col-form-label">Enter Password: </label>
+                <div class="col-sm-8 form-input">
+                  <input id="pw" class="form-control text-input" type="password">
+                </div>
+                <label for="pw-repeat" class="col-sm-4 col-form-label col-form-label">Confirm Password: </label>
+                <div class="col-sm-8 form-input">
+                  <input id="pw-repeat" class="form-control text-input" type="password">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-12">
+                  <input type="submit" class="btn float-right" value="Set Password">
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div id="pw-response" class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+        </div>
+      </div>
+      <div class="row requires-device requires-init">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Log in</h4>
+          <p>
+          To log in to the device, use your password.
+          </p>
+          <p>
+          To verify the correctness of the password, a
+          <span class="code">device info</span> request is attempted.
+          This request is encrypted using a key derived from the provided password.
+          If the response is successful, the password is correct.
+          Otherwise, the provided password is incorrect.
+          More information about the <span class="code">device info</span> request
+          can be found below.
+          </p>
+          <div id="login-info" class="info-msg alert alert-secondary hidden"></div>
+          <form id="login">
+            <div class="form-group">
+              <div class="row">
+                <label for="pw-current" class="col-sm-2 col-form-label col-form-label">Password: </label>
+                <div class="col-sm-8 form-input">
+                  <input id="pw-current" class="form-control text-input" type="password">
+                </div>
+                <input type="submit" class="btn" value="Login">
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Device Info</h3>
+          <p>
+          The device info request returns important information about the device,
+          such as its serial number, version number, name, state and more.
+          It can only be called via an encrypted channel and, therefore, requires
+          that the password has been set correctly.
+          </p>
+          <p>
+          The device information is queried by sending the following encrypted request:
+          </p>
+          <pre class="code">
+{
+  "device" : "info"
+}</pre>
+          <div id="device-info-msg" class="info-msg alert hidden">
+          </div>
+          <button id="get-device-info" class="btn">Get Device Info</button>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Name</h3>
+          <p>
+          The name of the device can be set as well. By default, it is <span class="term">My Digital Bitbox</span>.
+          </p>
+          <p>
+          The device name is set by sending the following encrypted request:
+          </p>
+          <pre class="code">
+{
+  "name" : "&lt;name&gt;"
+}</pre>
+          <p>
+          It is returned as part of the device info request, but can also
+          be queried by sending the following request:
+          </p>
+          <pre class="code">
+{
+  "name" : ""
+}</pre>
+          <div id="set-name-msg" class="info-msg alert hidden">
+          </div>
+          <form id="set-name">
+            <div class="form-group">
+              <div class="row">
+                <label for="set-name-input" class="col-sm-1 col-form-label col-form-label">Name: </label>
+                <div class="col-sm-9 form-input">
+                  <input id="set-name-input" class="form-control text-input">
+                </div>
+                <input type="submit" class="btn" value="Set Name">
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password deactivate-on-seeded">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Create Wallet</h3>
+          <p>
+          Before being able to sign, a seed must be generated on the Bitbox.
+          For this, the SD card is required to be inserted.
+          The user confims the wallet creation with a long touch. 
+          </p>
+          <p>
+          The following request is created to trigger the seed generation
+          on the Bitbox:
+          </p>
+          <pre class="code">
+{
+  "seed" : {
+    "source" : "create",
+    "key" : "&lt;pbkdf2 stretched password&gt;",
+    "filename" : "&lt;backup name&gt;",
+  }
+}</pre>
+          <div id="create-wallet-msg" class="info-msg alert hidden">
+          </div>
+          <form id="create-wallet">
+            <div class="form-group">
+              <div class="row">
+                <label for="create-wallet-input" class="col-sm-3 col-form-label col-form-label">Backup Name: </label>
+                <div class="col-sm-7 form-input">
+                  <input id="create-wallet-input" class="form-control text-input">
+                </div>
+                <input type="submit" value="Create">
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password requires-wallet">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">XPub</h3>
+          <p>
+          After the wallet is created, the extended public key (XPub) can be used
+          to derive public keys of the hierarchical deterministic wallet.
+          </p>
+          <p>
+          The following request requests the extended public key for a given keypath:
+          </p>
+          <pre class="code">
+{
+  "xpub" : "&lt;keypath&gt;"
+}</pre>
+          <div id="get-xpub-msg" class="info-msg alert hidden">
+          </div>
+          <form id="get-xpub">
+            <div class="form-group">
+              <div class="row">
+                <label for="get-xpub-input" class="col-sm-3 col-form-label col-form-label">Keypath: </label>
+                <div class="col-sm-7 form-input">
+                  <input id="get-xpub-input" class="form-control text-input" type="text" value="m/44'/0'/1'/0/0" placeholder="m/44'/0'/1'/0/0">
+                </div>
+                <input type="submit" value="Query">
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password requires-wallet">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Sign transaction</h3>
+          <p>
+          Bitbox's main purpose is to sign transactions. The generated signature 
+          hash  and a keypath pointing to your wallet are passed to the 
+          <span class="code">sign</span> function. The user confirms the signing 
+          with a long touch.</p>
+          <p>The resulting API call is shown below: </p>
+          <pre class="code">
+{
+  "sign" : {
+    "meta" : "hash",
+    "data" : [ {"keypath" : "&lt;keypath&gt;", "hash" : "&lt;hash&gt;"} ]
+  }
+}</pre>
+          <div id="sign-msg" class="info-msg alert hidden">
+          </div>
+          <form id="sign">
+            <div class="form-group">
+              <div class="row">
+                <label for="sign-keypath" class="col-sm-4 col-form-label col-form-label">Keypath: </label>
+                <div class="col-sm-8 form-input">
+                  <input id="sign-keypath" class="form-control text-input" type="text" value="m/44'/0'/1'/0/0" placeholder="m/44'/0'/1'/0/0">
+                </div>
+                <label for="sign-hash" class="col-sm-4 col-form-label col-form-label">Signature Hash: </label>
+                <div class="col-sm-8 form-input">
+                  <input id="sign-hash" class="form-control text-input" type="text" value="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" placeholder="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef">
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-12">
+                  <input type="submit" class="btn float-right" value="Sign Transaction">
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Reset Device</h3>
+          <p>
+          It's possible to reset the device to its factory state. When 
+          calling the <span class="code">reset</span> function, the user
+          must confirm the reset with a long touch on the device.
+          </p>
+          <div id="reset-msg" class="info-msg alert hidden">
+          </div>
+          <button id="reset">Reset</button>
+        </div>
+      </div>
+      <div class="row requires-device requires-init requires-password">
+        <div class="col-xs-12 col-sm-12 col-md-12 col-lg-12 ">
+          <h3 class="hash-heading">Test API</h3>
+          <p>
+          To test any other API call, use the following input box to define the JSON
+          that you would like to send to the Bitbox. For plain text requests,
+          deselect the checkbox <span class="code">send encrypted</span>.
+          </p>
+          <div id="misc-msg" class="info-msg alert hidden">
+          </div>
+          <form id="misc">
+            <div class="form-group">
+              <div class="row">
+                <label for="misc-input" class="col-sm-12 col-form-label">Your input: </label>
+                <div class="col-sm-12 form-input">
+                  <textarea id="misc-input" class="form-control text-input" rows="10"></textarea>
+                </div>
+                <div class="col-sm-12 form-input">
+                  <input id="misc-input-encrypt" type="checkbox" value="Send encrypted" checked="true">
+                  <label for="misc-input-encrypt" class="col-form-label">Send encrypted</label>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-sm-12">
+                  <input type="submit" class="btn float-right" value="Send">
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+      <!-- All of the Node.js APIs are available in this renderer process. -->
+    <!--We are using Node.js <script>document.write(process.versions.node)</script>,
+    Chromium <script>document.write(process.versions.chrome)</script>,
+    and Electron <script>document.write(process.versions.electron)</script>.-->
+
+    <script>
+      // You can also require other files to run in this process
+      require('./renderer.js')
+    </script>
+  </body>
+</html>
