@@ -1,24 +1,24 @@
 {
-  "name": "electron-quick-start",
+  "name": "electronDemo",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "description": "A playground for the Bitbox build with ElectronJS",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "postinstall": "electron-rebuild --force"
   },
-  "repository": "https://github.com/electron/electron-quick-start",
+  "repository": "https://github.com/digitalbitbox/ElectronDemo",
   "keywords": [
     "Electron",
-    "quick",
-    "start",
-    "tutorial",
-    "demo"
+    "Bitbox",
+    "ShiftCryptosecurity",
+    "playground",
+    "tutorial"
   ],
-  "author": "GitHub",
-  "license": "CC0-1.0",
+  "author": "ShiftCryptosecurity",
+  "license": "TBD",
   "devDependencies": {
-    "electron": "~1.7.8",
+    "electron": "~1.8.4",
     "electron-rebuild": "^1.7.3"
   },
   "dependencies": {
