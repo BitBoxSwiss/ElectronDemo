@@ -1,0 +1,13 @@
+sudo: required
+
+services:
+  - docker
+
+addons:
+  apt:
+    packages:
+      - curl
+      - gnupg2
+
+script:
+- docker build --tag electron_demo-ci -f Dockerfile.travis .
