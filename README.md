@@ -2,7 +2,22 @@
 
 Welcome to the Digital Bitbox Playground. This application serves as a tutorial that will guide you in developing a wallet based on Node.js and Electron.
 
-## How To Use
+## How To Use with Docker
+
+Ensure that Docker is installed.
+
+Build both Docker images:
+```
+docker build --tag electron_demo-ci -f Dockerfile.travis .
+docker build --tag electron_demo_x11-ci -f Dockerfile.x11 .
+```
+
+Run the ElectronDemo inside of Docker:
+```
+./run-ElectronDemo-x11.sh
+```
+
+## How To Use without Docker
 
 To clone and run this repository you'll need [Git](https://git-scm.com) and [Node.js](https://nodejs.org/en/download/) installed on your computer. From your command line:
 
