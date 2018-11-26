@@ -17,6 +17,7 @@
 
 "use strict"
 
+const os = require('os');
 const hid = require('./hid')
 const cryptography = require('./cryptography')
 
@@ -91,6 +92,9 @@ function send(device, header, body, offset) {
   console.log('---- request ----');
   console.log(JSON.stringify(byteArray));
   console.log('-----------------');
+  if(os.platform() === 'win32') {
+    byteArray.unshift(0);
+  }
   device.write(byteArray)
   return bytesOfBody;
 }
