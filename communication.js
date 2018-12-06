@@ -20,6 +20,7 @@
 const os = require('os');
 const hid = require('./hid')
 const cryptography = require('./cryptography')
+const semver = require('semver')
 
 // the frame size for USB communication
 const usbReportSize = 64
@@ -32,7 +33,7 @@ const	u2fHIDVendorFirst = u2fHIDTypeInit | 0x40
 const	hwwCMD            = u2fHIDVendorFirst | 0x01
 
 /**
- * Returns a buffer filled with the initial frame header, 
+ * Returns a buffer filled with the initial frame header,
  * which contains the length of the message that follows.
  */
 function getInitialFrameHeader(dataLength) {
@@ -69,16 +70,16 @@ function getBody(msg) {
  * Returns the amount of bytes copied to the byte array.
  */
 function append(byteArray, buffer, maxLength) {
-  let i = 0; 
+  let i = 0;
   for (i = 0; i < buffer.length && i < maxLength; i++) {
     byteArray.push(buffer[i]);
   }
   return i;
 }
 
-/** 
- * Writes the header + parts of the body (starting from 
- * the given offset) to the interface and returns the number 
+/**
+ * Writes the header + parts of the body (starting from
+ * the given offset) to the interface and returns the number
  * of bytes of the body that were written.
  */
 function send(device, header, body, offset) {
@@ -103,7 +104,7 @@ function send(device, header, body, offset) {
  * Sends a message to a device.
  * The message is chunked into 64 byte frames.
  */
-function sendFrame(device, msg) {
+function sendFrames(device, msg) {
   var initialHeader = getInitialFrameHeader(msg.length);
   var body = getBody(msg);
   var bodyOffset = 0;
@@ -160,6 +161,31 @@ function read(device) {
 }
 
 /**
+ * Generic helper function that handles resonse messages from the BitBox.
+ */
+function handleResponse(device, version, encryptionKey, authenticationKey, callback) {
+  let response = read(device);
+  if (response.ciphertext) {
+    let decodedBytes = Buffer.from(response.ciphertext, 'base64')
+
+    if (version && semver.gte(version, '5.0.0')) {
+      // checks the HMAC and, on success, calls the decrypt function
+      cryptography.checkHMAC(authenticationKey,
+        decodedBytes,
+        function(encryptedBytes) {
+          cryptography.decryptAES(encryptionKey, encryptedBytes, callback);
+        },
+        callback);
+    } else {
+      cryptography.decryptAES(encryptionKey, decodedBytes, callback);
+    }
+
+  } else {
+    callback(response);
+  }
+}
+
+/**
  * The communication class provides messages for communicating with the dbb.
  */
 module.exports = class Communication {
@@ -175,7 +201,13 @@ module.exports = class Communication {
     }
     this.device = hid.openDevice(deviceID)
     //this.device.on("data", readFrame);
-    this.secret = '';
+    this.encryptionKey = '';
+    this.authenticationKey = '';
+    this.version = '';
+  }
+
+  setVersion(version) {
+    this.version = version;
   }
 
   /**
@@ -190,52 +222,54 @@ module.exports = class Communication {
    */
   sendPlain(msg) {
     console.log('\nsending: ' + msg);
-    sendFrame(this.device, msg)
+    sendFrames(this.device, msg)
     // blocking call
     let response = read(this.device);
     console.log(JSON.stringify(response));
     return response;
-    /*while (data) {
-      readFrame(data);
-      data = this.device.readSync();
-      console.log('read sync: ' + data);
-    }*/
   }
 
   /**
    * Sends an encrypted message to the dbb and
    * calls the callback with the response.
-   * If the executeBeforeDecrypt callback is defined, it is 
-   * called before the decryption.
    */
-  sendEncrypted(msg, callback, executeBeforeDecrypt) {
+  sendEncrypted(msg, callback) {
     console.log('\nsending (encrypted): ' + msg);
-    if (!this.secret || this.secret == '') {
+    if (!this.encryptionKey || this.encryptionKey == '') {
       throw 'password required';
     }
-    let d = this.device;
-    let s = this.secret;
-    let encryptedMsg = cryptography.encryptAES(this.secret, msg, function(data) { 
-      console.log("=> " + data) 
-      sendFrame(d, data);
-      let response = read(d);
-      console.log(JSON.stringify(response));
-      if (response.ciphertext) {
-        if (executeBeforeDecrypt) {
-          executeBeforeDecrypt();
-        }
-        cryptography.decryptAES(s, response.ciphertext, function(data) {
-          console.log("=> " + data) 
+    let device = this.device;
+    let encryptionKey = this.encryptionKey;
+    let authenticationKey = this.authenticationKey;
+    let version = this.version;
+    let encryptedMsg = cryptography.encryptAES(encryptionKey, msg, function(encryptedBytes) {
+
+      let encodeAndSend = function(data) {
+        let encodedData = data.toString('base64');
+        console.log("=> " + encodedData)
+        sendFrames(device, encodedData);
+        handleResponse(device, version, encryptionKey, authenticationKey, function(data) {
+          console.log("=> " + data)
           callback(JSON.parse(data));
         });
+      };
+
+      if (version && semver.gte(version, '5.0.0')) {
+        cryptography.appendHMAC(authenticationKey, encryptedBytes, encodeAndSend);
       } else {
-        callback(response);
+        encodeAndSend(encryptedBytes);
       }
     });
   }
 
   setCommunicationSecret(password) {
-    this.secret = cryptography.doubleHash(password);
+    if (this.version && semver.gte(this.version, '5.0.0')) {
+      let sharedSecret = cryptography.sha512(cryptography.doubleHash(password));
+      this.encryptionKey = sharedSecret.slice(0, 32);
+      this.authenticationKey = sharedSecret.slice(32);
+    } else {
+      this.encryptionKey = cryptography.doubleHash(password);
+    }
   }
 
 }

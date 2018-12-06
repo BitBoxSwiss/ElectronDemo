@@ -19,6 +19,7 @@
 
 const Communication = require('./communication')
 const pbkdf2 = require('pbkdf2')
+const semver = require('semver')
 
 const nameRegex = /^[0-9a-zA-Z-_ ]{1,31}$/;
 
@@ -41,6 +42,7 @@ module.exports = class Bitbox {
     this.communication = new Communication(deviceID)
     this.password = '';
     this.name = '';
+    this.version = '';
     this.state = {
       initialized : false,
       seeded : false
@@ -61,6 +63,10 @@ module.exports = class Bitbox {
     try {
       let response = this.communication.sendPlain('{ "ping" : "" }');
       this.state.initialized = response.ping === 'password';
+      if (response.device) {
+        this.state.version = semver.coerce(response.device.version);
+        this.communication.setVersion(this.state.version);
+      }
       return response;
     } catch(e) {
       errorCallback(e);
@@ -81,8 +87,12 @@ module.exports = class Bitbox {
    */
   updatePassword(password, callback) {
     let _self = this;
-    this.communication.sendEncrypted('{ "password" : "' + password + '" }', callback, function() {
-      _self.setPassword(password);
+    this.communication.sendEncrypted('{ "password" : "' + password + '" }', function(response) {
+      if (response.password === "success") {
+        _self.communication.setCommunicationSecret(password);
+        _self.password = password;
+        callback(response);
+      }
     });
   }
 
@@ -197,7 +207,7 @@ module.exports = class Bitbox {
   /**
    * Signs the transaction on the device.
    * The 'sign' command must be send twice. The first command produces
-   * an encrypted verfication message. The second command returns an 
+   * an encrypted verfication message. The second command returns an
    * array of signatures and corresponding signing pubkeys.
    */
   sign(keypath, hash, successCallback, errorCallback) {
